@@ -46,11 +46,20 @@ class EmailChannel(BaseChannel):
         msg.attach(MIMEText(html_body, "html"))
 
         try:
-            with smtplib.SMTP(self.host, self.port, timeout=10) as server:
-                server.ehlo()
-                server.starttls()
-                server.login(self.username, self.password)
-                server.sendmail(self.from_addr, [recipient], msg.as_string())
+            if self.port == 465:
+                # SSL connection (e.g. Resend, Gmail SSL)
+                with smtplib.SMTP_SSL(self.host, self.port, timeout=15) as server:
+                    server.ehlo()
+                    server.login(self.username, self.password)
+                    server.sendmail(self.from_addr, [recipient], msg.as_string())
+            else:
+                # STARTTLS connection (port 587)
+                with smtplib.SMTP(self.host, self.port, timeout=15) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(self.username, self.password)
+                    server.sendmail(self.from_addr, [recipient], msg.as_string())
             return SendResult(success=True, provider_message_id=f"email-{session_id}")
         except smtplib.SMTPAuthenticationError:
             return SendResult(success=False, error="SMTP authentication failed")
